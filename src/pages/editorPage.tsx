@@ -1,8 +1,9 @@
-import { IconArrowUpLeftCircle } from '@tabler/icons-react'
+import { IconArrowUpLeftCircle, IconClick } from '@tabler/icons-react'
 import { KonvaEventObject } from 'konva/lib/Node'
 import { Stage as StageType } from 'konva/lib/Stage'
-import React, { useRef, useState, SetStateAction } from 'react'
-import { Arrow as KonvaArrow, Image as KonvaImage, Layer, Stage } from 'react-konva'
+import { Transformer } from 'konva/lib/shapes/Transformer'
+import React, { useRef, useState, SetStateAction, useEffect } from 'react'
+import { Arrow as KonvaArrow, Image as KonvaImage, Layer, Stage,Rect as KonvaRect, Transformer as KonvaTransformer } from 'react-konva'
 
 interface stagePptType {
     height: number,
@@ -25,16 +26,24 @@ type Arrow = Shape & {
     points: [number, number, number, number];
 };
 
+type ActionButton = {
+    icon:React.ReactElement,
+    value:DrawAction,
+    onClick:()=>void
+}
+
 export default function EditorPage() {
 
     const [stagePpt, setStagePpt] = useState<stagePptType>({
         height: 600,
-        width: 600
+        width: 966
     })
     const stageRef = useRef<StageType>(null)
     const [drawMode, setDrawMode] = useState<DrawAction>()
     const [arrow, setArrow] = useState<Arrow>()
     const isPaintRef = useRef(false)
+    const canvasOuterRef = useRef<HTMLDivElement>(null)
+    const transformerRef = useRef<Transformer>(null)
     const [image, setImage] = useState<HTMLImageElement>()
 
     const onStageMouseDown = (event: KonvaEventObject<MouseEvent>) => {
@@ -92,7 +101,7 @@ export default function EditorPage() {
 
     }
 
-    const onStageMouseUp = (evt: KonvaEventObject<MouseEvent>)=>{
+    const onStageMouseUp = (evt: KonvaEventObject<MouseEvent>) => {
 
         isPaintRef.current = false
 
@@ -143,15 +152,59 @@ export default function EditorPage() {
 
     }
 
+    const onClickShape = (event: KonvaEventObject<MouseEvent>) => {
+
+        switch(drawMode){
+            case DrawAction.Select :
+                transformerRef.current?.nodes([event.currentTarget])
+                break;
+        }
+
+        return
+
+    }
+
+    useEffect(
+        () => {
+            if (canvasOuterRef.current) {
+                
+                setStagePpt(
+                    {
+                        height: canvasOuterRef.current?.offsetHeight - 2,
+                        width: canvasOuterRef.current?.offsetWidth - 2,
+                    }
+                )
+            }
+        }, [canvasOuterRef.current]
+    )
+
+    const actionButtons:ActionButton[] = [
+        {
+            icon: <IconClick />,
+            onClick: () => setDrawMode(DrawAction.Select),
+            value:DrawAction.Select
+        },
+        {
+            icon: <IconArrowUpLeftCircle />,
+            onClick: () => setDrawMode(DrawAction.Arrow),
+            value:DrawAction.Arrow
+
+        },
+    ]
+
     return (
-        <div className=' flex flex-col w-min'>
+        <div className=' flex flex-col  w-full h-full '>
             <div className=' flex items-end gap-2'>
-                <button onClick={() => setDrawMode(DrawAction.Arrow)} className='p-1 border border-black'><IconArrowUpLeftCircle /></button>
+                {
+                    actionButtons.map(
+                        button => <button onClick={button.onClick} className={`p-1 border border-black ${button.value===drawMode?'bg-green-400':''}`}>{button.icon}</button>
+                    )
+                }
                 <input type="file" accept='image/png,image/jpeg' onChange={imageOnchangeHandler} />
                 <button className=' border border-gray-500 px-2 py-1 ' onClick={imageDowloadHandler} >Download image</button>
             </div>
-            <div className='border border-black'>
-                <div className='  w-[600px] h-[600px] overflow-auto'>
+            <div className='border border-black grow overflow-hidden flex'>
+                <div ref={canvasOuterRef} className=' grow  overflow-auto'>
                     {/* stage is like canvas */}
                     <Stage
                         height={stagePpt.height}
@@ -163,6 +216,11 @@ export default function EditorPage() {
                     >
 
                         <Layer>
+                            <KonvaRect
+                                height={stagePpt.height}
+                                width={stagePpt.width}
+                                onClick={(e)=>transformerRef.current?.nodes([])}
+                            />
                             {
                                 image &&
                                 <KonvaImage
@@ -180,8 +238,11 @@ export default function EditorPage() {
                                     fill={arrow.color}
                                     stroke={arrow.color}
                                     strokeWidth={4}
+                                    onClick={onClickShape}
+                                    draggable={drawMode===DrawAction.Select}
                                 />
                             }
+                            <KonvaTransformer ref={transformerRef} />
                         </Layer>
                     </Stage>
                 </div>

@@ -47,7 +47,7 @@ export function PdfPage({ page, scale,setDimensions }: Props) {
     )
 
     return (
-        <div className=' py-5'>
+        <div className=''>
             <canvas className='border' ref={canvasRef} height={height} width={width}></canvas>
         </div>
     )

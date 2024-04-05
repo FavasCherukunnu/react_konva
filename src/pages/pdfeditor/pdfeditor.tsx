@@ -62,7 +62,7 @@ export default function PdfEditor() {
     const [isMultiPage, setIsMultiPage] = useState(false);
     const [isFirstPage, setIsFirstPage] = useState(false);
     const [isLastPage, setIsLastPage] = useState(false);
-    const [scale, setScale] = useState(2)
+    const [scale, setScale] = useState(1)
     const [allPageAttachments, setAllPageAttachments] = useState<Attachments[]>([])
     const [dimensions, setDimensions] = useState<Dimensions>();
 
@@ -80,16 +80,51 @@ export default function PdfEditor() {
             save: () => any;
         };
 
+        
         try {
             pdfDoc = await PDFLib.PDFDocument.load(await readAsArrayBuffer(file));
-
+            
         } catch (e) {
             console.log('Failed to load PDF.');
             throw e;
         }
-
+        const pagesProcesses = pdfDoc.getPages().map(async (page, pageIndex) => {
+            const pageObjects = allPageAttachments[pageIndex];
+            // 'y' starts from bottom in PDFLib, use this to calculate y
+            const pageHeight = page.getHeight();
+            const embedProcesses = pageObjects.map(async (object: Attachment) => {
+                
+                if (object.type === 'text') {
+                    const {
+                        x,
+                        y,
+                        text,
+                        lineHeight,
+                        size,
+                        fontFamily,
+                        width,
+                    } = object as TextAttachment;
+                    console.log(object)
+                    const pdfFont = await pdfDoc.embedFont(fontFamily);
+                    return () =>
+                        page.drawText(text, {
+                            maxWidth: width,
+                            font: pdfFont,
+                            size,
+                            lineHeight,
+                            x,
+                            y: pageHeight - size! - y,
+                        });
+                } 
+            });
+            // embed objects in order
+            const drawProcesses: any[] = await Promise.all(embedProcesses);
+            drawProcesses.forEach((p) => p());
+        });
+        await Promise.all(pagesProcesses);
         try {
             const pdfBytes = await pdfDoc.save();
+            
             download(pdfBytes, name, 'application/pdf');
         } catch (e) {
             console.log('Failed to save PDF.');
@@ -133,6 +168,11 @@ export default function PdfEditor() {
 
     const addAttachment = (attachment: Attachment) => {
         if (pageIndex < 0) return;
+        if (allPageAttachments.length === 0) {
+            console.log('this is ', attachment)
+            setAllPageAttachments([[attachment]])
+            return
+        }
         const newAllPageAttachmentsAdd = allPageAttachments.map(
             (attachments, index) =>
                 pageIndex === index
@@ -153,10 +193,12 @@ export default function PdfEditor() {
         );
         setAllPageAttachments(newAllPageAttachmentsRemove)
     }
-    const updateAttachment = (attachmentIndex: number,attachment: Partial<Attachment>) => {
+    const updateAttachment = (attachmentIndex: number, attachment: Partial<Attachment>) => {
         if (pageIndex === -1) {
-            return ;
+            return;
         }
+
+        console.log(attachment)
 
         const newAllPageAttachmentsUpdate = allPageAttachments.map(
             (otherPageAttachments, index) =>
@@ -168,6 +210,7 @@ export default function PdfEditor() {
                     )
                     : otherPageAttachments
         );
+        setAllPageAttachments(newAllPageAttachmentsUpdate)
     }
 
     const addText = () => {
@@ -186,15 +229,17 @@ export default function PdfEditor() {
         addAttachment(newTextAttachment);
     };
 
+    // console.log(allPageAttachments)
+
     return (
         <div className=' max-h-screen min-h-screen h-screen flex flex-col overflow-hidden w-full'>
             <div className='py-2 h-min w-full border-b border-gray-400 flex justify-center gap-1'>
                 <input type="file" onChange={onPdfChange} accept='application/pdf' />
                 <button onClick={downloadPdf} className=' px-2 py-1 border border-gray-400 hover:bg-gray-200'>Download</button>
-                <button className='px-2 py-1 border border-gray-400 hover:bg-gray-200 font-bold'>Aa</button>
+                <button onClick={addText} className='px-2 py-1 border border-gray-400 hover:bg-gray-200 font-bold'>Aa</button>
             </div>
-            <div className=' grow overflow-auto flex justify-center'>
-                <div className=' relative w-min h-min'>
+            <div className=' grow overflow-auto '>
+                <div className=' m-auto relative w-min h-min'>
                     {
                         pages?.length && pages.length > 0 ?
                             <>

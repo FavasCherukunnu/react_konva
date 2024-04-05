@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-import { prepareAsset } from './utils/prepareAssets';
+import { prepareAsset } from './pages/pdfeditor/utils/prepareAssets';
 
 prepareAsset();
 

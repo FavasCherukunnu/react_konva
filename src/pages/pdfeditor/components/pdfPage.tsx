@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 
 interface Props {
     page: Promise<any> | undefined, //current page
-    scale:number
+    scale: number,
+    setDimensions: ({ width, height }: Dimensions) => void;
 }
 
-export function PdfPage({ page ,scale}: Props) {
+export function PdfPage({ page, scale,setDimensions }: Props) {
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [width, setWidth] = useState(0);
@@ -23,11 +24,16 @@ export function PdfPage({ page ,scale}: Props) {
                     const viewport = _page.getViewport({ scale: scale });
                     setWidth(viewport.width);
                     setHeight(viewport.height);
+                    const newDimensions = {
+                        width: viewport.width,
+                        height: viewport.height,
+                    };
+                    setDimensions(newDimensions as Dimensions)
 
                     if (context) {
                         await _page.render({
-                          canvasContext: canvasRef.current?.getContext('2d'),
-                          viewport,
+                            canvasContext: canvasRef.current?.getContext('2d'),
+                            viewport,
                         }).promise;
                     }
 
@@ -37,12 +43,12 @@ export function PdfPage({ page ,scale}: Props) {
             renderPage()
 
         }
-        , [page,scale]
+        , [page, scale]
     )
 
     return (
-        <div>
-            <canvas ref={canvasRef} height={height} width={width}></canvas>
+        <div className=' py-5'>
+            <canvas className='border' ref={canvasRef} height={height} width={width}></canvas>
         </div>
     )
 }
